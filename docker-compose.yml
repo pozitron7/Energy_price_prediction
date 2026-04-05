@@ -1,0 +1,36 @@
+version: "3.9"
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  Energy Price Prediction – Docker Compose
+#
+#  Services:
+#   db   – PostgreSQL 16 + TimescaleDB 2.x  (primary time-series store)
+#
+#  Usage:
+#    docker compose up -d          # start PostgreSQL in the background
+#    docker compose down -v        # stop & remove volumes (data loss!)
+# ─────────────────────────────────────────────────────────────────────────────
+
+services:
+  db:
+    image: timescale/timescaledb:latest-pg16
+    container_name: energy_timescaledb
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: energy_user
+      POSTGRES_PASSWORD: energy_pass
+      POSTGRES_DB: energy_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./src/database/schema.sql:/docker-entrypoint-initdb.d/01_schema.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U energy_user -d energy_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  pgdata:
+    driver: local
