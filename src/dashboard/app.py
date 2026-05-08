@@ -1,4 +1,4 @@
-"""
+﻿"""
 src/dashboard/app.py
 ====================
 Streamlit dashboard for interactive visualisation of energy price predictions.
@@ -310,7 +310,7 @@ with tab1:
         )[["Čas (UTC)", "Skutečnost", "Predikce", "chyba (EUR/MWh)"]]
         st.dataframe(
             err_df.style.format({"Skutečnost": "{:.2f}", "Predikce": "{:.2f}", "chyba (EUR/MWh)": "{:.2f}"}),
-            use_container_width=True,
+            width="stretch",
         )
 
 # ===========================================================================
@@ -370,14 +370,14 @@ with tab2:
             cheap = next_day_df.nsmallest(6, "predicted_price_eur")[
                 ["hour", "predicted_price_eur"]
             ].rename(columns={"hour": "Hodina", "predicted_price_eur": "Cena (EUR/MWh)"})
-            st.dataframe(cheap.style.format({"Cena (EUR/MWh)": "{:.2f}"}), use_container_width=True)
+            st.dataframe(cheap.style.format({"Cena (EUR/MWh)": "{:.2f}"}), width="stretch")
 
         with col_b:
             st.markdown("**🔴 Nejdražších 6 hodin**")
             expensive = next_day_df.nlargest(6, "predicted_price_eur")[
                 ["hour", "predicted_price_eur"]
             ].rename(columns={"hour": "Hodina", "predicted_price_eur": "Cena (EUR/MWh)"})
-            st.dataframe(expensive.style.format({"Cena (EUR/MWh)": "{:.2f}"}), use_container_width=True)
+            st.dataframe(expensive.style.format({"Cena (EUR/MWh)": "{:.2f}"}), width="stretch")
 
 # ===========================================================================
 # TAB 3 – SHAP Feature Analysis
@@ -401,13 +401,17 @@ with tab3:
                 matplotlib.use("Agg")
                 import matplotlib.pyplot as plt
 
-                model = joblib.load(model_path)
+                artefact = joblib.load(model_path)
+                # ModelTrainer.save_model stores {"model", "feature_cols", ...}
+                model = artefact["model"] if isinstance(artefact, dict) else artefact
                 feat_df = load_feature_sample(n_rows=300)
 
-                # Drop non-feature columns
-                non_feature_cols = {"timestamp_utc", "price_eur_mwh", "updated_at"}
-                feature_cols = [c for c in feat_df.columns if c not in non_feature_cols]
-                X_sample = feat_df[feature_cols].dropna()
+                if isinstance(artefact, dict) and artefact.get("feature_cols"):
+                    feature_cols = list(artefact["feature_cols"])
+                else:
+                    non_feature_cols = {"timestamp_utc", "price_eur_mwh", "updated_at"}
+                    feature_cols = [c for c in feat_df.columns if c not in non_feature_cols]
+                X_sample = feat_df[feature_cols].fillna(0)
 
                 if X_sample.empty:
                     st.warning("⚠️ Žádná dostupná data příznaků pro výpočet SHAP.")
@@ -450,3 +454,4 @@ with tab3:
             except Exception as exc:
                 logger.exception("SHAP analysis failed.")
                 st.error(f"❌ Chyba při výpočtu SHAP hodnot: {exc}")
+
