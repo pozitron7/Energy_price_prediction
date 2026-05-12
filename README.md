@@ -76,3 +76,7 @@ Optional: `ENTSOE_API_TOKEN` (free at transparency.entsoe.eu), `DATABASE_URL`
   features are then uninformative. Set the token for real data.
 - The hold-out window includes a price-level shift the model under-predicts; see the report.
 - Intraday market and the dbt layer from the original design are not implemented yet.
+
+## Scheduling
+
+See [.github/workflows/daily_pipeline.yml](.github/workflows/daily_pipeline.yml): 11:00 UTC predicts tomorrow, 14:00 UTC ingests OTE results, evaluates and refreshes plots. Copy [.env.example](.env.example) for configuration.
