@@ -31,7 +31,7 @@ ENTSOE_API_TOKEN: str = os.getenv("ENTSOE_API_TOKEN", "")
 
 # ── Data collection coverage ─────────────────────────────────────────────────
 # How many calendar days of historical data to fetch on first run.
-INITIAL_HISTORY_DAYS: int = int(os.getenv("INITIAL_HISTORY_DAYS", "730"))
+INITIAL_HISTORY_DAYS: int = int(os.getenv("INITIAL_HISTORY_DAYS", "2000"))
 
 # ── Weather locations (Czech Republic) ───────────────────────────────────────
 # Czech electricity prices apply nationwide, so we sample multiple locations
@@ -60,4 +60,5 @@ FIGURES_DIR.mkdir(parents=True, exist_ok=True)
 
 # ── Timezone ─────────────────────────────────────────────────────────────────
 TIMEZONE: str = "Europe/Prague"  # CZ is always in one timezone (CET/CEST)
+
 

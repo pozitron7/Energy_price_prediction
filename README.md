@@ -1,4 +1,4 @@
-# Energy Price Prediction (CZ day-ahead market)
+﻿# Energy Price Prediction (CZ day-ahead market)
 
 Forecasts hourly OTE-CR day-ahead electricity prices from weather (Open-Meteo, four Czech
 cities), renewable generation (ENTSO-E) and calendar features, with a proper backtesting
@@ -48,7 +48,7 @@ tests/             pytest suite
 
 ```bash
 pip install -r requirements.txt
-python scripts/run_pipeline.py --mode full --start-date 2025-11-01   # ingest→train→predict→evaluate→plots
+python scripts/run_pipeline.py --mode full --start-date 2021-01-01   # ingest→train→predict→evaluate→plots
 streamlit run src/dashboard/app.py
 pytest
 ```
@@ -80,3 +80,4 @@ Optional: `ENTSOE_API_TOKEN` (free at transparency.entsoe.eu), `DATABASE_URL`
 ## Scheduling
 
 See [.github/workflows/daily_pipeline.yml](.github/workflows/daily_pipeline.yml): 11:00 UTC predicts tomorrow, 14:00 UTC ingests OTE results, evaluates and refreshes plots. Copy [.env.example](.env.example) for configuration.
+
