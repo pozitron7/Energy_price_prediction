@@ -10,7 +10,7 @@
 | Target | OTE-CR day-ahead price, hourly average (EUR/MWh) |
 | Price history | 2021-01-01 → 2026-11-02 (real OTE data, 51,156 hourly rows, ~5.8 years incl. the 2022 energy crisis) |
 | Weather | Open-Meteo archive, mean of Praha / Brno / Ostrava / Plzeň |
-| Generation (solar / wind) | **synthetic** (no ENTSO-E token configured) |
+| Generation (solar / wind) | **real**, Energy-Charts API (token-free; ENTSO-E used automatically if a token is set). Stored for analysis, not used as a model feature (unknown day-ahead, would leak) |
 | Model | XGBoost, early stopping, version `1.0.0` |
 | Backtest | Train strictly on data **before** the last 14 days, predict those 14 days |
 
@@ -18,12 +18,12 @@
 
 | Metric | Value |
 |--------|-------|
-| MAE | 35.4 EUR/MWh |
-| RMSE | 45.9 EUR/MWh |
-| MAPE | 16.1 % |
-| Directional accuracy | 69.9 % |
+| MAE | 34.9 EUR/MWh |
+| RMSE | 44.8 EUR/MWh |
+| MAPE | 15.9 % |
+| Directional accuracy | 70.1 % |
 
-Walk-forward CV over the full history gives a mean MAE of 21.2 EUR/MWh (RMSE 31.2). Extending the training history from 1 year to ~6 years roughly halved the hold-out error (MAE 68.9 → 35.4): the model now follows both the level and the intraday shape (Figure 1). The largest remaining misses are price spikes. Real ENTSO-E generation, gas/CO₂ price features and periodic retraining are the next likely gains.
+Walk-forward CV over the full history gives a mean MAE of 21.3 EUR/MWh (RMSE 31.4). Extending the training history from 1 year to ~6 years roughly halved the hold-out error (MAE 68.9 → 34.9): the model now follows both the level and the intraday shape (Figure 1). The largest remaining misses are price spikes. Lagged real generation (yesterday's solar/wind), gas/CO₂ price features and periodic retraining are the next likely gains.
 
 ## Figures
 
@@ -43,4 +43,5 @@ Walk-forward CV over the full history gives a mean MAE of 21.2 EUR/MWh (RMSE 31.
 High solar irradiance (`avg_irradiance`, red) pushes the predicted price down, as expected.
 
 ![SHAP summary](figures/shap_summary.png)
+
 

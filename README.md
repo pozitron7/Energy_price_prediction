@@ -55,7 +55,7 @@ pytest
 
 Pipeline stages (`--mode`): `ingest`, `transform`, `train`, `predict`, `evaluate`, `plots`, `full`.
 
-Optional: `ENTSOE_API_TOKEN` (free at transparency.entsoe.eu), `DATABASE_URL`
+Generation data comes from the token-free Energy-Charts API by default. Optional: `ENTSOE_API_TOKEN` (transparency.entsoe.eu) to use ENTSO-E instead, `DATABASE_URL`
 (`postgresql+psycopg2://energy_user:energy_pass@localhost:5432/energy_db`).
 
 ## Design notes
@@ -72,12 +72,11 @@ Optional: `ENTSOE_API_TOKEN` (free at transparency.entsoe.eu), `DATABASE_URL`
 
 ## Known limitations
 
-- Without `ENTSOE_API_TOKEN`, solar/wind generation is **synthetic** (clearly logged); those
-  features are then uninformative. Set the token for real data.
-- The hold-out window includes a price-level shift the model under-predicts; see the report.
+- Real solar/wind generation (Energy-Charts, or ENTSO-E with a token) is stored but not used as a model feature because it is unknown day-ahead; adding *lagged* generation is a planned improvement.`n- The hold-out window includes a price-level shift the model under-predicts; see the report.
 - Intraday market and the dbt layer from the original design are not implemented yet.
 
 ## Scheduling
 
 See [.github/workflows/daily_pipeline.yml](.github/workflows/daily_pipeline.yml): 11:00 UTC predicts tomorrow, 14:00 UTC ingests OTE results, evaluates and refreshes plots. Copy [.env.example](.env.example) for configuration.
+
 

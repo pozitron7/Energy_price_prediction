@@ -1,4 +1,4 @@
-﻿"""
+"""
 scripts/run_pipeline.py
 =======================
 Daily pipeline orchestrator for the Energy Price Prediction system.
@@ -77,11 +77,24 @@ def ingest(engine, start_date: date, end_date: date) -> None:
     n = weather.save_to_db(df_weather, engine)
     logger.info("Weather: saved %d weather records.", n)
 
-    # 3. ENTSO-E generation
-    entsoe = ENTSOEClient(api_token=ENTSOE_API_TOKEN)
-    df_gen = entsoe.fetch_generation(start_date, end_date)
-    n = entsoe.save_to_db(df_gen, engine)
-    logger.info("ENTSO-E: saved %d generation records.", n)
+    # 3. Generation: ENTSO-E (if token) -> Energy-Charts (token-free) -> synthetic
+    from src.ingestion.energy_charts_client import EnergyChartsClient
+
+    if ENTSOE_API_TOKEN:
+        gen_client = ENTSOEClient(api_token=ENTSOE_API_TOKEN)
+        df_gen = gen_client.fetch_generation(start_date, end_date)
+        source = "ENTSO-E"
+    else:
+        gen_client = EnergyChartsClient()
+        df_gen = gen_client.fetch_generation(start_date, end_date)
+        source = "Energy-Charts"
+        if df_gen.empty:
+            logger.warning("Energy-Charts returned no data; falling back to SYNTHETIC generation.")
+            gen_client = ENTSOEClient(api_token="")
+            df_gen = gen_client.fetch_generation(start_date, end_date)
+            source = "synthetic"
+    n = gen_client.save_to_db(df_gen, engine)
+    logger.info("Generation (%s): saved %d records.", source, n)
 
 
 def transform(engine) -> None:

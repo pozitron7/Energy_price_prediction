@@ -59,9 +59,10 @@ FEATURE_COLS: list[str] = [
     "day_of_week",
     "month",
     "is_holiday",
-    # Renewable generation
-    "solar_generation_mw",
-    "wind_generation_mw",
+    # NOTE: actual solar/wind generation (fact table columns) is deliberately NOT
+    # a feature: it is unknown the day before delivery, so using it would leak
+    # future information into training/backtests. Weather forecasts act as the
+    # day-ahead proxy for renewable output.
 ]
 
 #: Default XGBoost hyperparameters.
@@ -412,3 +413,4 @@ class ModelTrainer:
             "model_path": str(saved_path),
             "model_version": self.model_version,
         }
+
