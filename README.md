@@ -72,11 +72,13 @@ Generation data comes from the token-free Energy-Charts API by default. Optional
 
 ## Known limitations
 
-- Real solar/wind generation (Energy-Charts, or ENTSO-E with a token) is stored but not used as a model feature because it is unknown day-ahead; adding *lagged* generation is a planned improvement.`n- The hold-out window includes a price-level shift the model under-predicts; see the report.
+- Real solar/wind generation (Energy-Charts, or ENTSO-E with a token) is stored but not used as a model feature because it is unknown day-ahead; adding *lagged* generation is a planned improvement.
+- The hold-out window includes a price-level shift the model under-predicts; see the report.
 - Intraday market and the dbt layer from the original design are not implemented yet.
 
 ## Scheduling
 
 See [.github/workflows/daily_pipeline.yml](.github/workflows/daily_pipeline.yml): 11:00 UTC predicts tomorrow, 14:00 UTC ingests OTE results, evaluates and refreshes plots. Copy [.env.example](.env.example) for configuration.
+
 
 
