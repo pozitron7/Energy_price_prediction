@@ -32,26 +32,28 @@ import sys
 from datetime import date, timedelta
 from pathlib import Path
 
+from sqlalchemy import text
+
 # Allow running from project root
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from config.settings import (
     DATABASE_URL,
     ENTSOE_API_TOKEN,
+    FIGURES_DIR,
     INITIAL_HISTORY_DAYS,
     MODEL_PATH,
     MODEL_VERSION,
     WEATHER_LOCATIONS,
-    FIGURES_DIR,
 )
 from src.database.db_manager import get_engine, init_db
+from src.evaluation.backtest import Backtester
+from src.ingestion.entsoe_client import ENTSOEClient
 from src.ingestion.ote_client import OTEClient
 from src.ingestion.weather_client import WeatherClient
-from src.ingestion.entsoe_client import ENTSOEClient
-from src.transformation.feature_engineering import FeatureEngineer
-from src.models.train import ModelTrainer
 from src.models.predict import PricePredictor
-from src.evaluation.backtest import Backtester
+from src.models.train import ModelTrainer
+from src.transformation.feature_engineering import FeatureEngineer
 
 logging.basicConfig(
     level=logging.INFO,
@@ -59,6 +61,15 @@ logging.basicConfig(
     datefmt="%Y-%m-%dT%H:%M:%S",
 )
 logger = logging.getLogger("pipeline")
+
+
+def _table_count(engine, table_name: str) -> int:
+    """Return the row count of *table_name*, or 0 on error."""
+    try:
+        with engine.connect() as conn:
+            return int(conn.execute(text(f"SELECT COUNT(*) FROM {table_name}")).scalar() or 0)
+    except Exception:
+        return 0
 
 
 def ingest(engine, start_date: date, end_date: date) -> None:
@@ -99,6 +110,10 @@ def ingest(engine, start_date: date, end_date: date) -> None:
 
 def transform(engine) -> None:
     """Build / refresh the feature fact table."""
+    if _table_count(engine, "raw_energy_prices") == 0:
+        logger.warning("raw_energy_prices is empty. Ingesting last 30 days first...")
+        ingest(engine, date.today() - timedelta(days=30), date.today())
+
     logger.info("=== TRANSFORM: building feature table ===")
     fe = FeatureEngineer()
     df = fe.build_feature_table(engine)
@@ -108,6 +123,10 @@ def transform(engine) -> None:
 
 def train(engine) -> dict:
     """Train the XGBoost model."""
+    if _table_count(engine, "fact_hourly_market_features") == 0:
+        logger.warning("fact_hourly_market_features is empty. Running transform first...")
+        transform(engine)
+
     logger.info("=== TRAIN: XGBoost model v%s ===", MODEL_VERSION)
     trainer = ModelTrainer(model_path=MODEL_PATH, model_version=MODEL_VERSION)
     metrics = trainer.run(engine)
@@ -117,6 +136,15 @@ def train(engine) -> dict:
 
 def predict(engine) -> None:
     """Generate Day-Ahead predictions for tomorrow."""
+    if _table_count(engine, "raw_energy_prices") == 0:
+        logger.warning("raw_energy_prices is empty. Ingesting last 30 days first...")
+        ingest(engine, date.today() - timedelta(days=30), date.today())
+        transform(engine)
+
+    if not MODEL_PATH.exists():
+        logger.warning("Model file not found at %s. Triggering training first...", MODEL_PATH)
+        train(engine)
+
     logger.info("=== PREDICT: Day-Ahead for tomorrow ===")
     tomorrow = date.today() + timedelta(days=1)
 
@@ -131,7 +159,6 @@ def predict(engine) -> None:
     forecast_df = pd.concat(forecast_dfs, ignore_index=True)
 
     # Load recent prices for lag features
-    from sqlalchemy import text
     with engine.connect() as conn:
         last_prices = pd.read_sql(
             text("SELECT timestamp_utc, price_eur_mwh FROM raw_energy_prices "
@@ -146,6 +173,10 @@ def predict(engine) -> None:
 
 def evaluate(engine) -> dict:
     """Run backtesting evaluation (hold-out predictions + metrics)."""
+    if _table_count(engine, "fact_hourly_market_features") == 0:
+        logger.warning("fact_hourly_market_features is empty. Running transform first...")
+        transform(engine)
+
     from src.evaluation.historical import generate_historical_predictions
 
     logger.info("=== EVALUATE: backtesting model predictions ===")
@@ -158,6 +189,15 @@ def evaluate(engine) -> dict:
 
 def plots(engine) -> None:
     """Generate static result plots."""
+    if not MODEL_PATH.exists():
+        logger.warning("Model file not found at %s. Triggering training first...", MODEL_PATH)
+        train(engine)
+
+    if _table_count(engine, "model_predictions") == 0:
+        logger.warning("model_predictions is empty. Running evaluate and predict first...")
+        evaluate(engine)
+        predict(engine)
+
     logger.info("=== PLOTS: generating figures to %s ===", FIGURES_DIR)
     from scripts.generate_results_plots import generate_all_plots
     paths = generate_all_plots(engine, MODEL_PATH, FIGURES_DIR)
@@ -213,4 +253,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-

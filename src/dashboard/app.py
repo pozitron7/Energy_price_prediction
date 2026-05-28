@@ -142,37 +142,56 @@ def load_available_model_versions() -> list[str]:
 def load_next_day_predictions(model_version: str) -> pd.DataFrame:
     """Load next-day predicted prices from ``model_predictions``.
 
+    Selects the 24 hours strictly after the latest known actual price in
+    ``raw_energy_prices``; if none exist, falls back to the latest 24
+    predicted hours stored for *model_version*.
+
     Args:
         model_version: Model version string to filter.
 
     Returns:
         DataFrame with columns ``["timestamp_utc", "predicted_price_eur"]``
-        for tomorrow's 24 hours.  Empty DataFrame if no predictions exist.
+        for the 24-hour forecast window.  Empty DataFrame if no predictions exist.
     """
-    tomorrow = date.today() + timedelta(days=1)
-    start_utc = f"{tomorrow.isoformat()}T00:00:00"
-    end_utc = f"{tomorrow.isoformat()}T23:59:59"
-
-    sql = text("""
-        SELECT
-            target_timestamp_utc AS timestamp_utc,
-            predicted_price_eur
-        FROM model_predictions
-        WHERE model_version = :model_version
-          AND target_timestamp_utc >= :start_utc
-          AND target_timestamp_utc <= :end_utc
-        ORDER BY timestamp_utc
-    """)
     with ENGINE.connect() as conn:
-        df = pd.read_sql(
-            sql,
-            conn,
-            params={
-                "model_version": model_version,
-                "start_utc": start_utc,
-                "end_utc": end_utc,
-            },
-        )
+        last_actual = conn.execute(
+            text("SELECT MAX(timestamp_utc) FROM raw_energy_prices")
+        ).scalar()
+
+        if last_actual:
+            sql_after = text("""
+                SELECT
+                    target_timestamp_utc AS timestamp_utc,
+                    predicted_price_eur
+                FROM model_predictions
+                WHERE model_version = :model_version
+                  AND target_timestamp_utc > :last_actual
+                ORDER BY timestamp_utc
+                LIMIT 24
+            """)
+            df = pd.read_sql(
+                sql_after,
+                conn,
+                params={"model_version": model_version, "last_actual": str(last_actual)},
+            )
+        else:
+            df = pd.DataFrame()
+
+        if df.empty:
+            sql_latest = text("""
+                SELECT
+                    target_timestamp_utc AS timestamp_utc,
+                    predicted_price_eur
+                FROM model_predictions
+                WHERE model_version = :model_version
+                ORDER BY target_timestamp_utc DESC
+                LIMIT 24
+            """)
+            df = pd.read_sql(sql_latest, conn, params={"model_version": model_version})
+
+    if df.empty:
+        return df
+
     df["timestamp_utc"] = pd.to_datetime(df["timestamp_utc"], utc=True)
     return df.sort_values("timestamp_utc").reset_index(drop=True)
 
@@ -346,13 +365,14 @@ with tab2:
             for p in prices
         ]
 
+        forecast_date = next_day_df["timestamp_utc"].dt.date.max()
         fig, ax = plt.subplots(figsize=(14, 4))
         ax.bar(range(len(prices)), prices, color=colours, edgecolor="white", linewidth=0.5)
         ax.set_xticks(range(len(prices)))
         ax.set_xticklabels(labels, rotation=45, ha="right", fontsize=9)
         ax.set_ylabel("Predikovaná cena (EUR/MWh)")
         ax.set_title(
-            f"Hodinová předpověď cen – {date.today() + timedelta(days=1)}\n"
+            f"Hodinová předpověď cen – {forecast_date}\n"
             f"Zelená: levné (< {p20:.1f} EUR/MWh) | Červená: drahé (> {p80:.1f} EUR/MWh)",
             fontsize=11,
         )
@@ -454,4 +474,3 @@ with tab3:
             except Exception as exc:
                 logger.exception("SHAP analysis failed.")
                 st.error(f"❌ Chyba při výpočtu SHAP hodnot: {exc}")
-

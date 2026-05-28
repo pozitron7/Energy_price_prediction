@@ -119,3 +119,15 @@ class TestSessionScope:
             ).scalar()
 
         assert count == 0, f"Expected 0 rows after rollback, found {count}."
+
+
+class TestGetEngine:
+    """Tests for :func:`src.database.db_manager.get_engine` robustness."""
+
+    def test_get_engine_empty_string_fallback(self) -> None:
+        """Empty string or whitespace must safely fall back to default SQLite engine."""
+        engine = get_engine("")
+        assert engine.dialect.name == "sqlite"
+
+        engine_ws = get_engine("   ")
+        assert engine_ws.dialect.name == "sqlite"

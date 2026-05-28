@@ -113,15 +113,21 @@ def get_engine(database_url: str | None = None) -> Engine:
     """Return a SQLAlchemy ``Engine`` for the configured database.
 
     Args:
-        database_url: Connection string.  Defaults to the value in
-            ``config.settings.DATABASE_URL``.
+        database_url: Connection string. Defaults to the value in
+            ``config.settings.DATABASE_URL``. If None or empty, falls
+            back to the default SQLite path.
 
     Returns:
         A SQLAlchemy Engine instance.
     """
-    if database_url is None:
+    if not database_url or not str(database_url).strip():
         from config.settings import DATABASE_URL  # lazy import avoids circular deps
         database_url = DATABASE_URL
+
+    database_url = str(database_url).strip()
+    if not database_url:
+        from config.settings import PROJECT_ROOT
+        database_url = f"sqlite:///{PROJECT_ROOT / 'data' / 'energy.db'}"
 
     is_sqlite = database_url.startswith("sqlite")
     connect_args: dict = {}

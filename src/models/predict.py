@@ -295,10 +295,12 @@ class PricePredictor:
 
         # Predict the first 24 hours *after* the latest known price, i.e. the
         # delivery day whose OTE prices are not published yet.
-        if not feature_df.empty:
+        if not feature_df.empty and not last_prices_df.empty:
             last_known = pd.to_datetime(last_prices_df["timestamp_utc"], utc=True).max()
-            idx = pd.to_datetime(feature_df.index, utc=True)
-            feature_df = feature_df[idx > last_known].iloc[:24]
+            if pd.notna(last_known):
+                idx = pd.to_datetime(feature_df.index, utc=True)
+                future_slice = feature_df[idx > last_known].iloc[:24]
+                feature_df = future_slice if not future_slice.empty else feature_df.iloc[-24:]
 
         # ------------------------------------------------------------------
         # 3. Run inference

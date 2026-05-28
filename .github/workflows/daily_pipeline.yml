@@ -25,11 +25,17 @@ jobs:
       - run: pytest -q
       - name: Predict (11:00 UTC run)
         if: github.event.schedule == '0 11 * * *'
-        run: python scripts/run_pipeline.py --mode predict
+        run: |
+          python scripts/run_pipeline.py --mode ingest --start-date $(date -u -d '-30 days' +%F)
+          python scripts/run_pipeline.py --mode transform
+          python scripts/run_pipeline.py --mode train
+          python scripts/run_pipeline.py --mode predict
       - name: Ingest, evaluate, plots (14:00 UTC run)
         if: github.event.schedule != '0 11 * * *'
         run: |
-          python scripts/run_pipeline.py --mode ingest --start-date $(date -u -d '-7 days' +%F)
+          python scripts/run_pipeline.py --mode ingest --start-date $(date -u -d '-30 days' +%F)
           python scripts/run_pipeline.py --mode transform
+          python scripts/run_pipeline.py --mode train
+          python scripts/run_pipeline.py --mode predict
           python scripts/run_pipeline.py --mode evaluate
           python scripts/run_pipeline.py --mode plots

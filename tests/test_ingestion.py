@@ -77,7 +77,7 @@ class TestOTEClient:
     def test_ote_fetch_historical_uses_synthetic_fallback(self) -> None:
         """fetch_historical must fall back to synthetic data on network failure.
 
-        Patches ``requests.get`` to always raise :class:`requests.RequestException`
+        Patches ``requests.Session.get`` to always raise :class:`requests.RequestException`
         and calls ``fetch_historical`` for a 3-day window, expecting 3 × 24 = 72
         rows in the returned DataFrame.
         """
@@ -86,7 +86,10 @@ class TestOTEClient:
         start = date.today() - timedelta(days=3)
         end = date.today() - timedelta(days=1)
 
-        with patch("requests.get", side_effect=requests.RequestException("mocked network error")):
+        with (
+            patch("requests.Session.get", side_effect=requests.RequestException("mocked network error")),
+            patch("time.sleep", return_value=None),
+        ):
             client = mod.OTEClient()
             result = client.fetch_historical(start=start, end=end)
 
@@ -127,10 +130,17 @@ class TestWeatherClient:
         mock_resp.ok = False
         mock_resp.raise_for_status.side_effect = requests.HTTPError("500 Server Error")
 
-        with patch("requests.get", return_value=mock_resp):
+        with (
+            patch("requests.Session.get", return_value=mock_resp),
+            patch("time.sleep", return_value=None),
+        ):
             client = mod.WeatherClient()
             try:
-                result = client.fetch_historical()
+                result = client.fetch_historical(
+                    {"name": "Praha", "latitude": 50.0755, "longitude": 14.4378},
+                    date.today() - timedelta(days=10),
+                    date.today() - timedelta(days=5),
+                )
                 # If it returns without raising, the result must be non-empty
                 assert result is not None, "fetch_historical returned None on API failure."
                 assert not (isinstance(result, pd.DataFrame) and result.empty), (

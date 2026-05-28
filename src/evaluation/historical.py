@@ -48,7 +48,13 @@ def generate_historical_predictions(
     cutoff = df.index.max() - timedelta(days=holdout_days)
     train_df, test_df = df[df.index <= cutoff], df[df.index > cutoff]
     if len(train_df) < 200 or test_df.empty:
-        raise ValueError("Not enough data for a historical backtest split.")
+        # Gracefully adjust hold-out window when available history is shorter
+        if len(df) >= 120:
+            effective_days = max(1, min(holdout_days, (len(df) - 100) // 24))
+            cutoff = df.index.max() - timedelta(days=effective_days)
+            train_df, test_df = df[df.index <= cutoff], df[df.index > cutoff]
+        if len(train_df) < 50 or test_df.empty:
+            raise ValueError("Not enough data for a historical backtest split.")
 
     model = trainer.train(train_df)
     preds = model.predict(test_df[FEATURE_COLS].fillna(0))

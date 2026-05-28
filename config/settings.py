@@ -1,4 +1,4 @@
-﻿"""
+"""
 config/settings.py
 ==================
 Central configuration for the Energy Price Prediction project.
@@ -17,10 +17,10 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 # Set DATABASE_URL in your .env file or shell to use PostgreSQL:
 #   postgresql+psycopg2://energy_user:energy_pass@localhost:5432/energy_db
 #
-# If not set, a local SQLite file is used automatically.
-DATABASE_URL: str = os.getenv(
-    "DATABASE_URL",
-    f"sqlite:///{PROJECT_ROOT / 'data' / 'energy.db'}",
+# If not set (or empty string from CI secrets), a local SQLite file is used automatically.
+_raw_db_url = os.getenv("DATABASE_URL", "").strip()
+DATABASE_URL: str = (
+    _raw_db_url if _raw_db_url else f"sqlite:///{PROJECT_ROOT / 'data' / 'energy.db'}"
 )
 
 # ── API Keys ─────────────────────────────────────────────────────────────────
@@ -60,5 +60,3 @@ FIGURES_DIR.mkdir(parents=True, exist_ok=True)
 
 # ── Timezone ─────────────────────────────────────────────────────────────────
 TIMEZONE: str = "Europe/Prague"  # CZ is always in one timezone (CET/CEST)
-
-
