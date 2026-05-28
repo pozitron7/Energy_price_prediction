@@ -1,4 +1,4 @@
-﻿"""
+"""
 src/dashboard/app.py
 ====================
 Streamlit dashboard for interactive visualisation of energy price predictions.
@@ -353,7 +353,7 @@ with tab2:
         ax.set_ylabel("Predikovaná cena (EUR/MWh)")
         ax.set_title(
             f"Hodinová předpověď cen – {date.today() + timedelta(days=1)}\n"
-            f"🟢 Levné (< {p20:.1f})   🔴 Drahé (> {p80:.1f})",
+            f"Zelená: levné (< {p20:.1f} EUR/MWh) | Červená: drahé (> {p80:.1f} EUR/MWh)",
             fontsize=11,
         )
         ax.grid(axis="y", linestyle=":", alpha=0.4)
